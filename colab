@@ -1,0 +1,83 @@
+# ============================================================
+#  COLAB CELLS — 3D Pose Estimation with russoale/hmr2.0
+#  Replaces:  bash hmr/3dpose_estimate.sh  (python2 path)
+# ============================================================
+# Paste each ### CELL ### block into a separate Colab cell.
+
+
+### CELL 1 — Clone & install hmr2.0  (run once) ###
+
+import os
+os.chdir('/content')   # always start from /content
+
+!git clone https://github.com/russoale/hmr2.0.git
+!pip install -r hmr2.0/requirements.txt -q
+
+
+### CELL 2 — Download a pre-trained model  (run once) ###
+# Choose ONE of these.  base_model is the safest starting point.
+
+# base_model (paired setting — no SMPL supervision)
+!mkdir -p hmr2.0/logs/"paired(joints)"/base_model
+!wget -q https://github.com/russoale/hmr2.0/releases/download/2.0/base_model.paired.zip
+!unzip -o base_model.paired.zip -d hmr2.0/logs/"paired(joints)"/base_model/
+!rm base_model.paired.zip
+
+# If you want the toes model instead, uncomment:
+# !mkdir -p hmr2.0/logs/"paired(joints)"/toes_model
+# !wget -q https://github.com/russoale/hmr2.0/releases/download/2.0/toes_model.paired.zip
+# !unzip -o toes_model.paired.zip -d hmr2.0/logs/"paired(joints)"/toes_model/
+
+
+### CELL 3 — Drop the bridge script into /content  ###
+
+# Just upload 3dpose_hmr2.py to /content via the Colab file browser,
+# OR run this cell to write it inline (it's the file you already have).
+
+bridge_script = open('3dpose_hmr2.py').read()   # if you uploaded it
+# — OR copy-paste the full script content here if you prefer.
+
+
+### CELL 4 — Make output directories  (idempotent) ###
+
+import os
+for d in [
+    'hmr/output/csv',
+    'hmr/output/csv_joined',
+    'hmr/output/images',
+    'hmr/output/bvh_animation',
+]:
+    os.makedirs(d, exist_ok=True)
+print("Directories ready.")
+
+
+### CELL 5 — Run 3D pose estimation  ###
+# This replaces:  bash hmr/3dpose_estimate.sh
+
+os.chdir('/content')
+
+!python 3dpose_hmr2.py \
+    --images_dir keras_Realtime_Multi-Person_Pose_Estimation/sample_images \
+    --jsons_dir  keras_Realtime_Multi-Person_Pose_Estimation/sample_jsons \
+    --model      base_model \
+    --setting    "paired(joints)" \
+    --joint_type cocoplus \
+    --init_toes  false \
+    --hmr2_root  hmr2.0 \
+    --csv_dir    hmr/output/csv \
+    --csv_joined hmr/output/csv_joined/csv_joined.csv
+
+# ✅ When done you should see:
+#    [hmr2] Done. N frames written to hmr/output/csv_joined/csv_joined.csv
+
+
+### CELL 6 — Convert CSV → BVH with Blender  (unchanged from original) ###
+# Exactly the same command as before — nothing changes here.
+
+!blender --background hmr/csv_to_bvh.blend -noaudio -P hmr/csv_to_bvh.py
+
+
+### CELL 7 — Download the BVH ###
+
+from google.colab import files
+files.download('hmr/output/bvh_animation/estimated_animation.bvh')
